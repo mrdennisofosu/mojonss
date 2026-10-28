@@ -9,15 +9,22 @@ env/
 # Python generated files
 *.pyc
 __pycache__/
+**/__pycache__/
 
 # Frontend dependencies and build files
 node_modules/
+**/node_modules/
 dist/
+**/dist/
 
 # Database
 db.sqlite3
+**/db.sqlite3
 
 # Environment variables
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example

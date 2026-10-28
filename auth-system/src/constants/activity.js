@@ -1,0 +1,15 @@
+export const ACTIVITY_TYPE = {
+  LOGIN: 'login',
+  LOGIN_FAILED: 'login_failed',
+  REGISTER: 'register',
+  EMAIL_VERIFIED: 'email_verified',
+  PASSWORD_CHANGED: 'password_changed',
+  PASSWORD_RESET_REQUESTED: 'password_reset_requested',
+  PASSWORD_RESET: 'password_reset',
+  ACCOUNT_ACTIVATED: 'account_activated',
+  ACCOUNT_DEACTIVATED: 'account_deactivated',
+  ROLE_CHANGED: 'role_changed',
+  ADMIN_ACTION: 'admin_action',
+  PROFILE_UPDATED: 'profile_updated',
+  SESSION_REVOKED: 'session_revoked',
+}
