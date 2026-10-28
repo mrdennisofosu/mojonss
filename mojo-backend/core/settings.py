@@ -19,7 +19,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware', # Top
+    'corsheaders.middleware.CorsMiddleware',  # Top
     'django.middleware.common.CommonMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -64,13 +64,21 @@ USE_TZ = True
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# --- THE NUCLEAR CORS FIX ---
-CORS_ALLOW_ALL_ORIGINS = True # Allow EVERYTHING
+# --- CORS: the React app (Vite) talks to Django with cookies ---
+# Always open the app at http://localhost:5173 (not 127.0.0.1) so the
+# cookie stays on the same site as the API at http://localhost:8000.
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+]
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+]
 
-# Disable all security restrictions for localhost development
-SESSION_COOKIE_SAMESITE = None
-CSRF_COOKIE_SAMESITE = None
-SESSION_COOKIE_HTTPONLY = False
-SESSION_COOKIE_SECURE = False
-CSRF_COOKIE_SECURE = False
+# --- Cookies (local development) ---
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_HTTPONLY = True   # JavaScript must not be able to read the session cookie
+SESSION_COOKIE_SECURE = False    # set to True when you deploy with HTTPS
+CSRF_COOKIE_SECURE = False       # set to True when you deploy with HTTPS
