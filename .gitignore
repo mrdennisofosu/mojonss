@@ -1,7 +1,23 @@
-"venv/" 
-"node_modules/" 
-"db.sqlite3" 
-"*.pyc"
-"__pycache__/" 
-"dist/" 
-".env"
+# Python virtual environments
+venv/
+.venv/
+env/
+**/venv/
+**/.venv/
+**/env/
+
+# Python generated files
+*.pyc
+__pycache__/
+
+# Frontend dependencies and build files
+node_modules/
+dist/
+
+# Database
+db.sqlite3
+
+# Environment variables
+.env
+.env.*
+!.env.example
