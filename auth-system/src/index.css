@@ -22,6 +22,124 @@
 }
 
 /* ----------------------------------------------------------
+   THEMES
+   <html data-theme="light | dim | dark"> is set by the
+   ThemeProvider (and by a tiny script in index.html so there
+   is no flash). Light uses the normal Tailwind colors. Dim and
+   Dark flip the slate scale: slate-50 becomes the page color,
+   slate-900 becomes the text color, and so on. That is why
+   existing classes like bg-slate-50 and text-slate-900 keep
+   working with no changes.
+   --theme-surface replaces bg-white (cards, navbar, sidebar).
+   ---------------------------------------------------------- */
+
+/* Colored tints shared by Dim and Dark (alerts, badges, hover fills) */
+:root[data-theme="dim"],
+:root[data-theme="dark"] {
+  --color-brand-50: #172554;
+  --color-brand-100: #1e3a8a;
+  --color-brand-200: #1e40af;
+
+  --color-red-50: #3b1219;
+  --color-red-100: #4c1a1f;
+  --color-red-200: #7f1d1d;
+  --color-red-300: #991b1b;
+
+  --color-green-50: #10291d;
+  --color-green-100: #14372a;
+  --color-green-200: #166534;
+  --color-green-300: #15803d;
+
+  --color-amber-50: #33260a;
+  --color-amber-100: #452f0a;
+  --color-amber-200: #854d0e;
+  --color-amber-300: #a16207;
+}
+
+/* DIM: soft dark blue-grey */
+:root[data-theme="dim"] {
+  color-scheme: dark;
+  --theme-surface: #1f2c3a;
+  --color-slate-50: #15202b;
+  --color-slate-100: #2b3b4d;
+  --color-slate-200: #3d4f63;
+  --color-slate-300: #50647a;
+  --color-slate-400: #7f92a6;
+  --color-slate-500: #a1b2c3;
+  --color-slate-600: #b8c6d4;
+  --color-slate-700: #cfdae4;
+  --color-slate-800: #e4ebf1;
+  --color-slate-900: #f4f7fa;
+  --color-slate-950: #fafcfe;
+}
+
+/* DARK: deepest, near black */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --theme-surface: #131a27;
+  --color-slate-50: #0b0f19;
+  --color-slate-100: #1e293b;
+  --color-slate-200: #2f3b52;
+  --color-slate-300: #43526b;
+  --color-slate-400: #6f8099;
+  --color-slate-500: #94a4b9;
+  --color-slate-600: #abb8ca;
+  --color-slate-700: #c5cfdd;
+  --color-slate-800: #dde4ee;
+  --color-slate-900: #f1f5f9;
+  --color-slate-950: #f8fafc;
+}
+
+/* ----------------------------------------------------------
+   DARK-MODE FIXES for classes that a color-scale swap cannot
+   handle on its own. They sit in the utilities layer with the
+   lowest specificity, so hover and focus styles still win.
+   ---------------------------------------------------------- */
+@layer utilities {
+
+  /* White cards, panels, navbar, sidebar, dropdowns */
+  :where([data-theme="dim"], [data-theme="dark"]) :is([class~="bg-white"]) {
+    background-color: var(--theme-surface);
+  }
+
+  /* See-through white (the navbar uses bg-white/95 with a blur) */
+  :where([data-theme="dim"], [data-theme="dark"]) :is([class~="bg-white/95"], [class~="bg-white/90"], [class~="bg-white/80"]) {
+    background-color: color-mix(in srgb, var(--theme-surface) 92%, transparent);
+  }
+
+  /* Dark page overlays (dialogs, mobile drawer) must stay dark */
+  :where([data-theme="dim"], [data-theme="dark"]) :is([class~="bg-slate-900/40"], [class~="bg-slate-900/50"], [class~="bg-slate-900/60"]) {
+    background-color: rgb(0 0 0 / 0.65);
+  }
+
+  /* Solid dark blocks (toasts, tooltips) have white text, so keep them dark */
+  :where([data-theme="dim"], [data-theme="dark"]) :is([class~="bg-slate-900"], [class~="bg-slate-800"]) {
+    background-color: #2f3b52;
+  }
+
+  /* Colored text that is too dark on a dark background */
+  :where([data-theme="dim"], [data-theme="dark"]) :is([class~="text-brand-600"], [class~="text-brand-700"], [class~="text-brand-800"], [class~="text-brand-900"]) {
+    color: #93c5fd;
+  }
+
+  :where([data-theme="dim"], [data-theme="dark"]) [class~="hover:text-brand-700"]:hover {
+    color: #bfdbfe;
+  }
+
+  :where([data-theme="dim"], [data-theme="dark"]) :is([class~="text-red-600"], [class~="text-red-700"], [class~="text-red-800"]) {
+    color: #fca5a5;
+  }
+
+  :where([data-theme="dim"], [data-theme="dark"]) :is([class~="text-green-600"], [class~="text-green-700"], [class~="text-green-800"]) {
+    color: #86efac;
+  }
+
+  :where([data-theme="dim"], [data-theme="dark"]) :is([class~="text-amber-600"], [class~="text-amber-700"], [class~="text-amber-800"]) {
+    color: #fcd34d;
+  }
+}
+
+/* ----------------------------------------------------------
    BASE STYLES
    Applied to the whole app. Keep this section small.
    ---------------------------------------------------------- */

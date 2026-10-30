@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// On your machine this falls back to localhost. On Vercel, set VITE_API_URL
+// to your deployed backend, for example https://your-backend.onrender.com/auth/
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/auth/';
+
 const api = axios.create({
-    baseURL: 'http://localhost:8000/auth/',
+    baseURL,
     withCredentials: true,
 });
 

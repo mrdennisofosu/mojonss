@@ -81,7 +81,7 @@ function Sidebar({ navigation, isOpen, onClose, onLogout }) {
             onClick={onClose}
             aria-hidden="true"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col bg-white shadow-xl">
+          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col border-r border-slate-200 bg-white shadow-xl">
             <div className="flex h-16 items-center justify-between border-b border-slate-200 px-4">
               <span className="font-bold text-slate-900">{APP_NAME}</span>
               <button

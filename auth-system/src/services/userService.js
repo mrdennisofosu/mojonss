@@ -1,4 +1,3 @@
-
 import api from './api';
 
 async function listUsers({ search = '', role = '', status = '', page = 1, pageSize = 8 } = {}) {
@@ -18,15 +17,11 @@ async function setUserStatus(id, status, actor) {
   return response.data;
 }
 
+// Admin only. The backend creates the account with a random temporary password
+// and returns it once: { user: {...}, temporaryPassword: "..." }
 async function createUser({ fullName, email, role }) {
-  const response = await api.post('register/', {
-    username: email,
-    email: email,
-    password: 'Welcome@123',
-    firstName: fullName,
-    role: role,
-  });
-  return { user: response.data, temporaryPassword: 'Welcome@123' };
+  const response = await api.post('users/create/', { fullName, email, role });
+  return response.data;
 }
 
 async function updateUser(id, { fullName, email }) {
