@@ -1,14 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ChevronDown, LogOut } from "lucide-react";
-import { ROLES } from "../constants/roles";
+import RoleTag from "../components/ui/RoleTag";
 import { profileMenuItems } from "../constants/navigation";
 import { getInitials } from "../utils/getInitials";
+import { visibleItems } from "../utils/levels";
 
 function ProfileMenu({ user, onLogout }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
-  const items = profileMenuItems[user.role] ?? [];
+  const items = visibleItems(profileMenuItems[user.role] ?? [], user);
 
   // Close the dropdown when clicking outside it or pressing Escape
   useEffect(() => {
@@ -47,6 +48,9 @@ function ProfileMenu({ user, onLogout }) {
         <span className="hidden max-w-40 truncate text-sm font-medium text-slate-900 sm:inline">
           {user.fullName}
         </span>
+        <span className="hidden md:inline-flex">
+          <RoleTag person={user} />
+        </span>
         <ChevronDown
           size={16}
           className={`text-slate-500 transition-transform duration-150 ${open ? "rotate-180" : ""}`}
@@ -59,13 +63,11 @@ function ProfileMenu({ user, onLogout }) {
           role="menu"
           className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
         >
-          <div className="border-b border-slate-100 px-3 py-2">
+          <div className="space-y-1 border-b border-slate-100 px-3 py-2">
             <p className="truncate text-sm font-semibold text-slate-900">
               {user.fullName}
             </p>
-            <p className="text-xs text-slate-500">
-              {user.role === ROLES.ADMIN ? "Administrator" : "User"}
-            </p>
+            <RoleTag person={user} />
           </div>
 
           {items.map(({ label, to, icon: Icon }) => (

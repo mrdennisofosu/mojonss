@@ -103,3 +103,18 @@ else:
     CSRF_COOKIE_SECURE = True
     # The host terminates HTTPS and forwards plain HTTP to Django
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# --- Email (verification links) ---
+# By default emails are PRINTED in the terminal that runs Django, so you can test
+# without an email account. To send real emails, set the environment variables
+# shown in the steps. Never write the real password in this file.
+EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@mojo.local')
+
+# Where the link in the email points (the React app). Set FRONTEND_URL when you deploy.
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')

@@ -15,8 +15,12 @@ class Profile(models.Model):
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='user')
+    # Only meaningful when role is "admin": True = Super Admin, False = restricted Admin
+    is_super_admin = models.BooleanField(default=False)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
     email_verified = models.BooleanField(default=False)
+    # When this person last opened the Support page (drives the sidebar number)
+    support_seen_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -61,6 +65,21 @@ class UserSession(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.device}"
 
+class EmailVerificationToken(models.Model):
+    """One-time link sent to confirm an email address. Only a hash of the token is stored."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='verification_tokens')
+    email = models.EmailField()  # the address this link verifies
+    token_hash = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Verification for {self.email}"
+
 class SystemSetting(models.Model):
     key = models.CharField(max_length=100, unique=True)
     value = models.TextField()
@@ -69,20 +88,6 @@ class SystemSetting(models.Model):
     def __str__(self):
         return f"{self.key}: {self.value}"
 
-# class SupportRequest(models.Model):
-#     STATUS_CHOICES = [
-#         ('pending', 'Pending'),
-#         ('in_progress', 'In progress'),
-#         ('resolved', 'Resolved'),
-#     ]
-
-#     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='support_requests')
-#     subject = models.CharField(max_length=255)
-#     message = models.TextField()
-#     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-#     resolved_at = models.DateTimeField(null=True, blank=True)
 class SupportRequest(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -103,17 +108,6 @@ class SupportRequest(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.subject}"
 
-# class SupportReply(models.Model):
-#     request = models.ForeignKey(SupportRequest, on_delete=models.CASCADE, related_name='replies')
-#     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name='support_replies')
-#     message = models.TextField()
-#     is_staff_reply = models.BooleanField(default=False)
-#     created_at = models.DateTimeField(auto_now_add=True)
-
-#     class Meta:
-#         ordering = ['created_at']
-#         verbose_name_plural = 'support replies'
-
 class SupportReply(models.Model):
     # related_name='replies' is what makes request.replies.all() work
     request = models.ForeignKey(SupportRequest, on_delete=models.CASCADE, related_name='replies')
@@ -128,16 +122,6 @@ class SupportReply(models.Model):
     def __str__(self):
         return f"Reply by {self.author.username} on '{self.request.subject}'"
 
-# class Announcement(models.Model):
-#     STATUS_CHOICES = [('draft', 'Draft'), ('published', 'Published')]
-
-#     title = models.CharField(max_length=200)
-#     body = models.TextField()  # the API sends and receives this as "content"
-#     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='draft')
-#     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='announcements')
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     published_at = models.DateTimeField(null=True, blank=True)
-
 class Announcement(models.Model):
     STATUS_CHOICES = [('draft', 'Draft'), ('published', 'Published')]
     title = models.CharField(max_length=120)
@@ -146,6 +130,7 @@ class Announcement(models.Model):
     created_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
     published_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         ordering = ['-created_at']
 

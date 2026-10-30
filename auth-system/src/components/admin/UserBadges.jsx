@@ -1,14 +1,12 @@
 import Badge from "../ui/Badge";
-import { ROLES } from "../../constants/roles";
+import RoleTag from "../ui/RoleTag";
 import { ACCOUNT_STATUS } from "../../constants/statuses";
-import { roleLabel, statusLabel } from "../../utils/labels";
+import { statusLabel } from "../../utils/labels";
 
-export function RoleBadge({ role }) {
-  return (
-    <Badge tone={role === ROLES.ADMIN ? "brand" : "slate"}>
-      {roleLabel(role)}
-    </Badge>
-  );
+// Pass level when you have it (it tells Super Admin and Admin apart).
+// With only a role it shows Admin or User.
+export function RoleBadge({ role, level }) {
+  return <RoleTag person={{ role, level }} />;
 }
 
 export function StatusBadge({ status }) {

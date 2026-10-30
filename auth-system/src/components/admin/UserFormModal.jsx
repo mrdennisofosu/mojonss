@@ -10,6 +10,7 @@ import { useForm } from "../../hooks/useForm";
 import { useToast } from "../../hooks/useToast";
 import { userService } from "../../services/userService";
 import { roleOptions } from "../../utils/labels";
+import { isSuperAdmin } from "../../utils/levels";
 import {
   compactErrors,
   validateEmail,
@@ -38,6 +39,11 @@ function UserFormModal({ mode, user, actor, onClose, onCreated, onUpdated }) {
   });
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
+
+  // Admins can only add normal users. Super admins can add any level.
+  const availableRoles = isSuperAdmin(actor)
+    ? roleOptions
+    : roleOptions.filter((option) => option.value === ROLES.USER);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -133,7 +139,7 @@ function UserFormModal({ mode, user, actor, onClose, onCreated, onUpdated }) {
             name="role"
             value={form.values.role}
             onChange={form.handleChange}
-            options={roleOptions}
+            options={availableRoles}
           />
         )}
       </form>

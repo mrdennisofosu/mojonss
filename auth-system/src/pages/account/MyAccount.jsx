@@ -1,10 +1,12 @@
 import ChangePasswordForm from "../../components/account/ChangePasswordForm";
-import ProfileForm from "../../components/account/ProfileForm";
-import { RoleBadge, StatusBadge } from "../../components/admin/UserBadges";
+import PersonalInfoCard from "../../components/account/PersonalInfoCard";
+import VerifyEmailCard from "../../components/account/VerifyEmailCard";
+import { StatusBadge } from "../../components/admin/UserBadges";
 import Badge from "../../components/ui/Badge";
 import Card from "../../components/ui/Card";
 import PageContainer from "../../components/ui/PageContainer";
 import PageHeader from "../../components/ui/PageHeader";
+import RoleTag from "../../components/ui/RoleTag";
 import { useAuth } from "../../hooks/useAuth";
 import { formatDate, formatDateTime } from "../../utils/formatDate";
 
@@ -12,7 +14,7 @@ function MyAccount() {
   const { user } = useAuth();
 
   const details = [
-    ["Role", <RoleBadge key="role" role={user.role} />],
+    ["Role", <RoleTag key="role" person={user} />],
     ["Status", <StatusBadge key="status" status={user.status} />],
     [
       "Email",
@@ -28,13 +30,16 @@ function MyAccount() {
     <PageContainer>
       <PageHeader
         title="My Account"
-        description="Your personal information and password."
+        description="Your personal information, email verification and password."
       />
 
       <div className="grid gap-4 xl:grid-cols-3">
         <div className="space-y-4 xl:col-span-2">
           <Card title="Personal information">
-            <ProfileForm />
+            <PersonalInfoCard />
+          </Card>
+          <Card title="Verify your email">
+            <VerifyEmailCard />
           </Card>
           <Card title="Change password">
             <ChangePasswordForm />

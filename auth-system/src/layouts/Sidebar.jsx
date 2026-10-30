@@ -1,12 +1,23 @@
 import { NavLink } from "react-router";
 import { LogOut, X } from "lucide-react";
 import { APP_NAME } from "../constants/app";
+import { useSupportBadge } from "../hooks/useSupportBadge";
 
 const itemBase =
   "group relative flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 lg:min-h-10";
 
+// The red number shown beside a menu item (9+ for anything above nine)
+function CountPill({ count }) {
+  return (
+    <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-semibold leading-none text-white">
+      {count > 9 ? "9+" : count}
+      <span className="sr-only"> new</span>
+    </span>
+  );
+}
+
 // One link in the sidebar. NavLink knows if its page is the current one.
-function SidebarLink({ item, onNavigate }) {
+function SidebarLink({ item, onNavigate, count = 0 }) {
   const Icon = item.icon;
 
   return (
@@ -36,6 +47,7 @@ function SidebarLink({ item, onNavigate }) {
             className="shrink-0 transition-transform duration-150 group-hover:scale-110"
           />
           {item.label}
+          {count > 0 && <CountPill count={count} />}
         </>
       )}
     </NavLink>
@@ -45,11 +57,18 @@ function SidebarLink({ item, onNavigate }) {
 // navigation: the list of links for this person's role
 // isOpen / onClose: control the drawer on phones
 function Sidebar({ navigation, isOpen, onClose, onLogout }) {
+  const { count: supportCount, supportPath } = useSupportBadge();
+
   const content = (
     <div className="flex min-h-full flex-col justify-between gap-4 p-4">
       <nav aria-label="Main navigation" className="space-y-1">
         {navigation.map((item) => (
-          <SidebarLink key={item.to} item={item} onNavigate={onClose} />
+          <SidebarLink
+            key={item.to}
+            item={item}
+            onNavigate={onClose}
+            count={item.to === supportPath ? supportCount : 0}
+          />
         ))}
       </nav>
 

@@ -1,18 +1,12 @@
 import { useState } from "react";
-import { Link } from "react-router";
 import Alert from "../ui/Alert";
 import Button from "../ui/Button";
 import Input from "../ui/Input";
 import Spinner from "../ui/Spinner";
-import { ROUTES } from "../../constants/routePaths";
 import { useForm } from "../../hooks/useForm";
 import { useToast } from "../../hooks/useToast";
-import { authService } from "../../services/authService"; // FIXED: Import the service object
+import { authService } from "../../services/authService";
 import { compactErrors, validateEmail } from "../../utils/validators";
-
-const initialValues = {
-  email: "",
-};
 
 function validate(values) {
   return compactErrors({
@@ -20,9 +14,9 @@ function validate(values) {
   });
 }
 
-function ResendVerification() {
+function ResendVerification({ initialEmail = "" }) {
   const { showToast } = useToast();
-  const form = useForm({ initialValues, validate });
+  const form = useForm({ initialValues: { email: initialEmail }, validate });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -34,13 +28,14 @@ function ResendVerification() {
 
     setSubmitting(true);
     try {
-      // FIXED: Call authService.resendVerificationEmail
-      await authService.resendVerificationEmail(form.values.email.trim());
+      const result = await authService.resendVerificationEmail(
+        form.values.email.trim(),
+      );
 
       form.reset();
       showToast({
         type: "success",
-        message: "Verification email has been resent.",
+        message: result.message || "If the account exists, we sent a new link.",
       });
     } catch (error) {
       setSubmitError(
@@ -52,12 +47,13 @@ function ResendVerification() {
   }
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className="space-y-4">
       <h3 className="text-lg font-semibold text-slate-900">
-        Didn't receive the email?
+        Didn&apos;t receive the email?
       </h3>
       <p className="text-sm text-slate-600">
-        Enter your email address and we'll send you a new verification link.
+        Enter your email address and we&apos;ll send you a new verification
+        link.
       </p>
 
       {submitError && (

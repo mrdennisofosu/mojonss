@@ -8,10 +8,11 @@ import { navigationByRole } from "../constants/navigation";
 import { ROUTES } from "../constants/routePaths";
 import { useAuth } from "../hooks/useAuth";
 import { usePageTitle } from "../hooks/usePageTitle";
+import { visibleItems } from "../utils/levels";
 
 // The ONE layout for the whole app.
 //   Signed out: navbar (with Sign In) + page + footer. No sidebar.
-//   Signed in:  the sidebar appears automatically, with the menu for their role.
+//   Signed in:  the sidebar appears automatically, with the menu for their level.
 function AppLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -21,7 +22,9 @@ function AppLayout() {
 
   usePageTitle();
 
-  const navigation = user ? navigationByRole[user.role] : null;
+  // Admins (not super admins) do not get the super-admin-only pages
+  const roleNavigation = user ? navigationByRole[user.role] : null;
+  const navigation = roleNavigation ? visibleItems(roleNavigation, user) : null;
   const hasSidebar = Boolean(navigation);
 
   // Every "Logout" button asks first

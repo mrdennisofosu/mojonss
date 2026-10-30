@@ -5,12 +5,15 @@ from django.contrib.auth.models import User
 from django.contrib.sessions.models import Session
 from django.utils import timezone
 
+from .admin_views import ADMIN_Q, SUPER_Q, apply_level, end_all_sessions
 from .models import (
-    Profile, ActivityLog, UserSession, SystemSetting,
+    Profile, ActivityLog, UserSession, SystemSetting, EmailVerificationToken,
     SupportRequest, SupportReply, Announcement,
 )
+from .permissions import ADMIN, LEVEL_LABELS, SUPER_ADMIN, USER, level_of
 from .settings_views import DEFAULTS, GROUPS, coerce_setting, stored_text
 from .user_views import make_temporary_password
+from .verification_views import send_verification_email
 
 # Titles shown at the top of the admin site
 admin.site.site_header = "Mojo Administration"
@@ -30,8 +33,53 @@ def log_admin_action(request, action, description):
 
 # ---------- Users and profiles ----------
 
+class ProfileForm(forms.ModelForm):
+    """Shared by the Profile box inside a User and by the Profiles list."""
+
+    class Meta:
+        model = Profile
+        exclude = ('support_seen_at',)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'is_super_admin' in self.fields:
+            self.fields['is_super_admin'].help_text = (
+                "Tick for a Super Admin. Leave unticked for a restricted Admin. "
+                "Only used when Role is Administrator."
+            )
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('is_super_admin') and cleaned.get('role') != 'admin':
+            raise forms.ValidationError("A Super Admin must have the role Administrator.")
+        return cleaned
+
+
+class LevelFilter(admin.SimpleListFilter):
+    title = 'access level'
+    parameter_name = 'level'
+
+    def lookups(self, request, model_admin):
+        return [
+            (SUPER_ADMIN, LEVEL_LABELS[SUPER_ADMIN]),
+            (ADMIN, LEVEL_LABELS[ADMIN]),
+            (USER, LEVEL_LABELS[USER]),
+        ]
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == SUPER_ADMIN:
+            return queryset.filter(SUPER_Q)
+        if value == ADMIN:
+            return queryset.filter(ADMIN_Q).exclude(SUPER_Q)
+        if value == USER:
+            return queryset.exclude(ADMIN_Q)
+        return queryset
+
+
 class ProfileInline(admin.StackedInline):
     model = Profile
+    form = ProfileForm
     can_delete = False
     verbose_name_plural = 'Profile'
 
@@ -40,20 +88,42 @@ class CustomUserAdmin(UserAdmin):
     inlines = (ProfileInline,)
     list_display = (
         'username', 'email', 'first_name', 'last_name',
-        'app_role', 'app_status', 'is_staff', 'is_active', 'date_joined',
+        'access_level', 'app_status', 'email_is_verified',
+        'is_staff', 'is_active', 'date_joined',
     )
-    list_filter = ('profile__role', 'profile__status', 'is_staff', 'is_superuser', 'is_active')
+    list_filter = (
+        LevelFilter, 'profile__status', 'profile__email_verified',
+        'is_staff', 'is_superuser', 'is_active',
+    )
     search_fields = ('username', 'email', 'first_name', 'last_name')
     list_select_related = ('profile',)
-    actions = ['reset_temporary_password', 'mark_accounts_active', 'mark_accounts_inactive']
+    actions = [
+        'reset_temporary_password',
+        'mark_accounts_active', 'mark_accounts_inactive',
+        'make_super_admin', 'make_admin', 'make_user',
+        'mark_email_verified', 'mark_email_not_verified', 'send_verification',
+    ]
 
-    @admin.display(description='App role', ordering='profile__role')
-    def app_role(self, obj):
-        return getattr(getattr(obj, 'profile', None), 'role', '-')
+    @admin.display(description='Access level')
+    def access_level(self, obj):
+        return LEVEL_LABELS[level_of(obj)]
 
     @admin.display(description='App status', ordering='profile__status')
     def app_status(self, obj):
         return getattr(getattr(obj, 'profile', None), 'status', '-')
+
+    @admin.display(description='Email verified', boolean=True)
+    def email_is_verified(self, obj):
+        return bool(getattr(getattr(obj, 'profile', None), 'email_verified', False))
+
+    # A Profile edited inside the User page: if it was made inactive, sign them out everywhere
+    def save_formset(self, request, form, formset, change):
+        super().save_formset(request, form, formset, change)
+        if formset.model is Profile:
+            for profile_form in formset.forms:
+                profile = profile_form.instance
+                if profile.pk and profile.status == 'inactive' and 'status' in profile_form.changed_data:
+                    end_all_sessions(profile.user)
 
     @admin.action(description="Reset password to a new temporary password (one user at a time)")
     def reset_temporary_password(self, request, queryset):
@@ -73,11 +143,7 @@ class CustomUserAdmin(UserAdmin):
         password = make_temporary_password()
         user.set_password(password)
         user.save(update_fields=['password'])
-
-        # Sign out every device that was using the old password
-        keys = list(UserSession.objects.filter(user=user).values_list('session_key', flat=True))
-        Session.objects.filter(session_key__in=keys).delete()
-        UserSession.objects.filter(user=user).delete()
+        end_all_sessions(user)  # sign out every device that was using the old password
 
         log_admin_action(request, 'password_change', f"Reset the password of {user.username} in admin")
         self.message_user(
@@ -89,28 +155,147 @@ class CustomUserAdmin(UserAdmin):
 
     def _set_status(self, request, queryset, status):
         count = 0
+        skipped_self = False
         for user in queryset:
+            if user == request.user and status == 'inactive':
+                skipped_self = True
+                continue
             profile, _ = Profile.objects.get_or_create(user=user)
             profile.status = status
             profile.save()
+            if status == 'inactive':
+                end_all_sessions(user)
             count += 1
-        log_admin_action(request, 'status_change', f"Set {count} account(s) to {status} in admin")
-        self.message_user(request, f"Marked {count} account(s) as {status}.", messages.SUCCESS)
+
+        if count:
+            log_admin_action(request, 'status_change', f"Set {count} account(s) to {status} in admin")
+            self.message_user(request, f"Marked {count} account(s) as {status}.", messages.SUCCESS)
+        if skipped_self:
+            self.message_user(request, "Your own account was skipped.", messages.WARNING)
 
     @admin.action(description="Mark selected accounts as active")
     def mark_accounts_active(self, request, queryset):
         self._set_status(request, queryset, 'active')
 
-    @admin.action(description="Mark selected accounts as inactive")
+    @admin.action(description="Mark selected accounts as inactive (also signs them out)")
     def mark_accounts_inactive(self, request, queryset):
         self._set_status(request, queryset, 'inactive')
 
+    def _set_level(self, request, queryset, level):
+        if not request.user.is_superuser:
+            self.message_user(request, "Only a Django superuser can change access levels here.", messages.ERROR)
+            return
+
+        changed, skipped = [], []
+        for user in queryset:
+            if user == request.user:
+                skipped.append(f"{user.username} (your own account)")
+            elif user.is_superuser and level != SUPER_ADMIN:
+                skipped.append(f"{user.username} (Django superuser)")
+            else:
+                apply_level(user, level)
+                changed.append(user.username)
+
+        if changed:
+            log_admin_action(
+                request, 'role_change',
+                f"Set {', '.join(changed)} to {LEVEL_LABELS[level]} in admin",
+            )
+            self.message_user(request, f"Set {len(changed)} account(s) to {LEVEL_LABELS[level]}.", messages.SUCCESS)
+        if skipped:
+            self.message_user(request, "Skipped: " + ", ".join(skipped), messages.WARNING)
+
+    @admin.action(description="Make selected users Super Admin")
+    def make_super_admin(self, request, queryset):
+        self._set_level(request, queryset, SUPER_ADMIN)
+
+    @admin.action(description="Make selected users Admin (restricted)")
+    def make_admin(self, request, queryset):
+        self._set_level(request, queryset, ADMIN)
+
+    @admin.action(description="Make selected users normal Users")
+    def make_user(self, request, queryset):
+        self._set_level(request, queryset, USER)
+
+    def _set_verified(self, request, queryset, verified):
+        count = 0
+        for user in queryset:
+            profile, _ = Profile.objects.get_or_create(user=user)
+            profile.email_verified = verified
+            profile.save(update_fields=['email_verified'])
+            count += 1
+        word = 'verified' if verified else 'not verified'
+        log_admin_action(request, 'status_change', f"Marked {count} email address(es) as {word} in admin")
+        self.message_user(request, f"Marked {count} email address(es) as {word}.", messages.SUCCESS)
+
+    @admin.action(description="Mark email as verified")
+    def mark_email_verified(self, request, queryset):
+        self._set_verified(request, queryset, True)
+
+    @admin.action(description="Mark email as NOT verified")
+    def mark_email_not_verified(self, request, queryset):
+        self._set_verified(request, queryset, False)
+
+    @admin.action(description="Send a verification email (up to 20 users at a time)")
+    def send_verification(self, request, queryset):
+        sent = failed = already = 0
+        for user in queryset[:20]:
+            profile = getattr(user, 'profile', None)
+            if profile and profile.email_verified:
+                already += 1
+                continue
+            try:
+                send_verification_email(user)
+                sent += 1
+            except Exception:
+                failed += 1
+
+        self.message_user(
+            request,
+            f"Sent {sent}. Already verified: {already}. Failed: {failed}.",
+            messages.SUCCESS if not failed else messages.WARNING,
+        )
+
 
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'role', 'status', 'email_verified', 'created_at')
-    list_filter = ('role', 'status', 'email_verified')
+    form = ProfileForm
+    list_display = ('user', 'role', 'access_level', 'status', 'email_verified', 'created_at')
+    list_filter = ('role', 'is_super_admin', 'status', 'email_verified')
     search_fields = ('user__username', 'user__email')
     list_select_related = ('user',)
+
+    @admin.display(description='Access level')
+    def access_level(self, obj):
+        return LEVEL_LABELS[level_of(obj.user)]
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        if 'status' in form.changed_data and obj.status == 'inactive':
+            end_all_sessions(obj.user)  # signed out everywhere straight away
+
+
+# ---------- Email verification links (read-only) ----------
+
+class EmailVerificationTokenAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'user', 'email', 'state', 'expires_at', 'used_at')
+    search_fields = ('user__username', 'email')
+    date_hierarchy = 'created_at'
+    list_select_related = ('user',)
+
+    # A record of what was sent: it cannot be added or edited, only cleaned up
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description='State')
+    def state(self, obj):
+        if obj.used_at:
+            return 'Used'
+        if obj.expires_at < timezone.now():
+            return 'Expired'
+        return 'Active'
 
 
 # ---------- Activity logs (read-only) ----------
@@ -376,6 +561,7 @@ class SystemSettingAdmin(admin.ModelAdmin):
 admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
 admin.site.register(Profile, ProfileAdmin)
+admin.site.register(EmailVerificationToken, EmailVerificationTokenAdmin)
 admin.site.register(ActivityLog, ActivityLogAdmin)
 admin.site.register(UserSession, UserSessionAdmin)
 admin.site.register(SupportRequest, SupportRequestAdmin)

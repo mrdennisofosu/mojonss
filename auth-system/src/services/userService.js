@@ -1,8 +1,9 @@
 import api from './api';
 
+// role here is a level: '', 'super_admin', 'admin' or 'user'
 async function listUsers({ search = '', role = '', status = '', page = 1, pageSize = 8 } = {}) {
   const response = await api.get('users/', {
-    params: { search, role, status, page, pageSize }
+    params: { search, level: role, status, page, pageSize }
   });
   return response.data;
 }
@@ -18,7 +19,7 @@ async function setUserStatus(id, status, actor) {
 }
 
 // Admin only. The backend creates the account with a random temporary password
-// and returns it once: { user: {...}, temporaryPassword: "..." }
+// and returns it once: { user: {...}, temporaryPassword: "...", verificationEmailSent }
 async function createUser({ fullName, email, role }) {
   const response = await api.post('users/create/', { fullName, email, role });
   return response.data;

@@ -58,7 +58,7 @@ function AppRoutes() {
           />
         </Route>
 
-        {/* ---------- ADMIN ROUTES: admins only ---------- */}
+        {/* ---------- ADMIN ROUTES: super admins and admins ---------- */}
         <Route
           path={ROUTES.ADMIN.ROOT}
           element={<ProtectedRoute allowedRoles={[ROLES.ADMIN]} />}
@@ -76,8 +76,12 @@ function AppRoutes() {
           />
           <Route path={ROUTES.ADMIN.SUPPORT} element={<SupportRequests />} />
           <Route path={ROUTES.ADMIN.SESSIONS} element={<AccountSessions />} />
-          <Route path={ROUTES.ADMIN.SETTINGS} element={<SystemSettings />} />
           <Route path={ROUTES.ADMIN.ACCOUNT} element={<MyAccount />} />
+
+          {/* Super admin only: System Settings */}
+          <Route element={<ProtectedRoute superAdminOnly />}>
+            <Route path={ROUTES.ADMIN.SETTINGS} element={<SystemSettings />} />
+          </Route>
         </Route>
 
         {/* ---------- USER ROUTES: signed-in users only ---------- */}
