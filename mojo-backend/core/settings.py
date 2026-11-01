@@ -1,17 +1,39 @@
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Reads the ".env" file next to manage.py. Variables already set in the terminal win.
+load_dotenv(BASE_DIR / '.env')
+
+
+def env(name, default=""):
+    """An environment variable, or the default when it is missing OR empty."""
+    value = os.environ.get(name, "").strip()
+    return value if value else default
+
+
+def env_bool(name, default=False):
+    value = env(name, "")
+    if not value:
+        return default
+    return value.lower() in ("true", "1", "yes", "on")
 
 
 def env_list(name, default=""):
     """Read a comma-separated environment variable into a clean list."""
-    return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
+    return [item.strip() for item in env(name, default).split(",") if item.strip()]
 
 
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-your-secret-key-here')
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+DEBUG = env_bool('DEBUG', True)
+SECRET_KEY = env('SECRET_KEY', 'django-insecure-your-secret-key-here')
 ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', '*')
+
+# A live server must never run with the placeholder key
+if not DEBUG and SECRET_KEY.startswith('django-insecure'):
+    raise RuntimeError("Set a real SECRET_KEY in the environment before running with DEBUG=False.")
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -106,15 +128,14 @@ else:
 
 # --- Email (verification links) ---
 # By default emails are PRINTED in the terminal that runs Django, so you can test
-# without an email account. To send real emails, set the environment variables
-# shown in the steps. Never write the real password in this file.
-EMAIL_BACKEND = os.environ.get('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@mojo.local')
+# without an email account. For real emails, change these values in ".env".
+EMAIL_BACKEND = env('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = env('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(env('EMAIL_PORT', '587'))
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+EMAIL_HOST_USER = env('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@mojo.local')
 
-# Where the link in the email points (the React app). Set FRONTEND_URL when you deploy.
-FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
+# Where the link in the email points (the React app)
+FRONTEND_URL = env('FRONTEND_URL', 'http://localhost:5173')
