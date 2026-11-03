@@ -1,4 +1,5 @@
 import api from './api';
+import { QUICK_REPLIES } from '../constants/quickReplies';
 
 export async function listSupportRequests({ search = '', status = '', page = 1, pageSize = 8 } = {}) {
   const response = await api.get('support/', {
@@ -17,7 +18,6 @@ export async function updateRequestStatus(id, status, actor) {
   return response.data;
 }
 
-
 export async function listMyRequests() {
   const response = await api.get('support/my/');
   return response.data.items; // backend wraps the list in { items, total }
@@ -28,8 +28,14 @@ export async function createSupportRequest({ subject, message }, user) {
   return response.data;
 }
 
+// The user taps a ready-made reply. Its text is sent through the normal reply
+// endpoint, which returns the whole updated request (with all replies).
 export async function sendQuickReply(id, presetId, user) {
-  const response = await api.post(`support/${id}/quick-reply/`, { presetId });
+  const preset = QUICK_REPLIES.find((reply) => reply.id === presetId);
+  if (!preset) {
+    throw new Error('That quick reply is no longer available.');
+  }
+
+  const response = await api.post(`support/${id}/reply/`, { message: preset.message });
   return response.data;
 }
-

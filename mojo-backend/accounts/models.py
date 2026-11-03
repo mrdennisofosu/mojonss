@@ -19,8 +19,10 @@ class Profile(models.Model):
     is_super_admin = models.BooleanField(default=False)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
     email_verified = models.BooleanField(default=False)
-    # When this person last opened the Support page (drives the sidebar number)
+    # Support activity before this moment counts as already seen (set the first time the badges load)
     support_seen_at = models.DateTimeField(null=True, blank=True)
+    # Announcements published before this moment count as already seen
+    announcements_seen_at = models.DateTimeField(null=True, blank=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -122,6 +124,20 @@ class SupportReply(models.Model):
     def __str__(self):
         return f"Reply by {self.author.username} on '{self.request.subject}'"
 
+class SupportRead(models.Model):
+    """When one person last opened one support request (drives the unread number)."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='support_reads')
+    request = models.ForeignKey(SupportRequest, on_delete=models.CASCADE, related_name='reads')
+    seen_at = models.DateTimeField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'request'], name='unique_support_read'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} read request #{self.request_id}"
+
 class Announcement(models.Model):
     STATUS_CHOICES = [('draft', 'Draft'), ('published', 'Published')]
     title = models.CharField(max_length=120)
@@ -136,3 +152,17 @@ class Announcement(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.status})"
+
+class AnnouncementRead(models.Model):
+    """One person opened one announcement."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='announcement_reads')
+    announcement = models.ForeignKey(Announcement, on_delete=models.CASCADE, related_name='reads')
+    seen_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'announcement'], name='unique_announcement_read'),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} read announcement #{self.announcement_id}"

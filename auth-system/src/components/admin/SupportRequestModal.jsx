@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 import Select from "../ui/Select";
@@ -7,15 +7,20 @@ import Textarea from "../ui/Textarea";
 import SupportBadge from "../support/SupportBadge";
 import SupportThread from "../support/SupportThread";
 import { useToast } from "../../hooks/useToast";
+import { markSupportRead } from "../../services/notificationService";
 import {
   replyToRequest,
   updateRequestStatus,
 } from "../../services/supportService";
+import { getSupportRequest } from "../../services/supportThreadService";
+import { BADGES_REFRESH, emit } from "../../utils/badgeEvents";
 import { formatDate } from "../../utils/formatDate";
 import {
   supportStatusMeta,
   supportStatusOptions,
 } from "../../utils/supportLabels";
+
+const REFRESH_EVERY_MS = 10000;
 
 // Read the conversation, reply, and change the status.
 // The modal keeps its own copy of the request so it updates without closing.
@@ -26,6 +31,62 @@ function SupportRequestModal({ request, actor, onClose, onChanged }) {
   const [replyText, setReplyText] = useState("");
   const [replyError, setReplyError] = useState("");
   const [busy, setBusy] = useState(""); // '', 'status' or 'reply'
+
+  const currentRef = useRef(current);
+  const onChangedRef = useRef(onChanged);
+
+  useEffect(() => {
+    currentRef.current = current;
+    onChangedRef.current = onChanged;
+  });
+
+  // Opening the request marks its messages as read, so the sidebar number goes down
+  const markRead = useCallback(() => {
+    markSupportRead(request.id)
+      .then(() => {
+        emit(BADGES_REFRESH);
+        onChangedRef.current?.();
+      })
+      .catch(() => {});
+  }, [request.id]);
+
+  useEffect(() => {
+    markRead();
+  }, [markRead]);
+
+  // While the request is open, pick up new messages and status changes by themselves
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refresh() {
+      try {
+        const fresh = await getSupportRequest(request.id);
+        if (cancelled) return;
+
+        const before = currentRef.current;
+        const freshReplies = fresh.replies ?? [];
+        const beforeReplies = before.replies ?? [];
+        const hasNewMessages = freshReplies.length > beforeReplies.length;
+
+        if (!hasNewMessages && fresh.status === before.status) return;
+
+        setCurrent(fresh);
+        // Keep what the admin has picked in the status box, unless they had not changed it
+        setStatusValue((selected) =>
+          selected === before.status ? fresh.status : selected,
+        );
+        if (hasNewMessages) markRead();
+      } catch {
+        // Try again on the next check
+      }
+    }
+
+    const timer = setInterval(refresh, REFRESH_EVERY_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [request.id, markRead]);
 
   async function handleStatus() {
     setBusy("status");

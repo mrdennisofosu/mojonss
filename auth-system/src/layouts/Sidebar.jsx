@@ -1,16 +1,16 @@
 import { NavLink } from "react-router";
 import { LogOut, X } from "lucide-react";
 import { APP_NAME } from "../constants/app";
-import { useSupportBadge } from "../hooks/useSupportBadge";
+import { useNavBadges } from "../hooks/useNavBadges";
 
 const itemBase =
   "group relative flex min-h-11 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150 lg:min-h-10";
 
-// The red number shown beside a menu item (9+ for anything above nine)
+// The red number shown beside a menu item (99+ for anything above ninety-nine)
 function CountPill({ count }) {
   return (
     <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-xs font-semibold leading-none text-white">
-      {count > 9 ? "9+" : count}
+      {count > 99 ? "99+" : count}
       <span className="sr-only"> new</span>
     </span>
   );
@@ -57,7 +57,14 @@ function SidebarLink({ item, onNavigate, count = 0 }) {
 // navigation: the list of links for this person's role
 // isOpen / onClose: control the drawer on phones
 function Sidebar({ navigation, isOpen, onClose, onLogout }) {
-  const { count: supportCount, supportPath } = useSupportBadge();
+  const { supportCount, announcementCount, supportPath, announcementsPath } =
+    useNavBadges();
+
+  function countFor(path) {
+    if (path === supportPath) return supportCount;
+    if (path === announcementsPath) return announcementCount;
+    return 0;
+  }
 
   const content = (
     <div className="flex min-h-full flex-col justify-between gap-4 p-4">
@@ -67,7 +74,7 @@ function Sidebar({ navigation, isOpen, onClose, onLogout }) {
             key={item.to}
             item={item}
             onNavigate={onClose}
-            count={item.to === supportPath ? supportCount : 0}
+            count={countFor(item.to)}
           />
         ))}
       </nav>

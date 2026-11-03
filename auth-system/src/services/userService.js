@@ -8,6 +8,12 @@ async function listUsers({ search = '', role = '', status = '', page = 1, pageSi
   return response.data;
 }
 
+// One person's current details (used to keep the details dialog up to date)
+async function getUser(id) {
+  const response = await api.get(`users/${id}/`);
+  return response.data;
+}
+
 async function changeUserRole(id, role, actor) {
   const response = await api.patch(`users/${id}/role/`, { role });
   return response.data;
@@ -32,6 +38,7 @@ async function updateUser(id, { fullName, email }) {
 
 export const userService = {
   listUsers,
+  getUser,
   changeUserRole,
   setUserStatus,
   createUser,

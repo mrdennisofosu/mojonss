@@ -1,19 +1,22 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "../ui/Button";
 import Modal from "../ui/Modal";
 import Select from "../ui/Select";
 import { RoleBadge, StatusBadge } from "./UserBadges";
 import { ACCOUNT_STATUS } from "../../constants/statuses";
 import { useAuth } from "../../hooks/useAuth";
+import { userService } from "../../services/userService";
 import { formatDate, formatDateTime } from "../../utils/formatDate";
 import { roleOptions } from "../../utils/labels";
 import { isSuperAdmin, levelOf } from "../../utils/levels";
+
+const REFRESH_EVERY_MS = 15000;
 
 // Everything about one user, plus the sensitive actions.
 // The actions only REQUEST a change: the page shows a confirmation dialog first.
 // The backend repeats every one of these checks.
 function UserDetailsModal({
-  user,
+  user: listedUser,
   isSelf,
   onClose,
   onEdit,
@@ -21,12 +24,35 @@ function UserDetailsModal({
   onToggleStatus,
 }) {
   const { user: currentUser } = useAuth();
-  const [selectedRole, setSelectedRole] = useState(levelOf(user));
+  const [user, setUser] = useState(listedUser);
+  const [selectedRole, setSelectedRole] = useState(levelOf(listedUser));
+
+  // Read the person's current details when the dialog opens, then every 15 seconds
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const fresh = await userService.getUser(listedUser.id);
+        if (!cancelled) setUser((previous) => ({ ...previous, ...fresh }));
+      } catch {
+        // Keep showing what we have and try again on the next check
+      }
+    }
+
+    load();
+    const timer = setInterval(load, REFRESH_EVERY_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [listedUser.id]);
+
   const isActive = user.status === ACCOUNT_STATUS.ACTIVE;
 
   const viewerIsSuper = isSuperAdmin(currentUser);
   const canChangeRole = viewerIsSuper && !isSelf;
-  // The list tells us if this viewer may manage this account
+  // The backend tells us if this viewer may manage this account
   const canManage = user.canManage ?? (viewerIsSuper && !isSelf);
   const canEdit = viewerIsSuper || canManage;
 
@@ -42,7 +68,10 @@ function UserDetailsModal({
     ["Status", <StatusBadge key="status" status={user.status} />],
     ["Email verified", user.emailVerified ? "Yes" : "No"],
     ["Joined", formatDate(user.createdAt)],
-    ["Last sign-in", formatDateTime(user.lastLogin)],
+    [
+      "Last sign-in",
+      user.lastLogin ? formatDateTime(user.lastLogin) : "Never signed in",
+    ],
   ];
 
   return (

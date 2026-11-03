@@ -2,6 +2,8 @@ import { useCallback, useState } from "react";
 import { LifeBuoy } from "lucide-react";
 import SupportRequestModal from "../../components/admin/SupportRequestModal";
 import SupportBadge from "../../components/support/SupportBadge";
+import UnreadCount from "../../components/support/UnreadCount";
+import Badge from "../../components/ui/Badge";
 import Button from "../../components/ui/Button";
 import DataTable from "../../components/ui/DataTable";
 import EmptyState from "../../components/ui/EmptyState";
@@ -15,11 +17,12 @@ import Select from "../../components/ui/Select";
 import { useAsyncData } from "../../hooks/useAsyncData";
 import { useAuth } from "../../hooks/useAuth";
 import { useDebounce } from "../../hooks/useDebounce";
+import { useOnEvent } from "../../hooks/useOnEvent";
 import { listSupportRequests } from "../../services/supportService";
+import { BADGES_REFRESH, SUPPORT_CHANGED, emit } from "../../utils/badgeEvents";
 import { formatDate } from "../../utils/formatDate";
-import { supportStatusFilterOptions } from "../../utils/supportLabels";
-import Badge from "../../components/ui/Badge";
 import { awaitingAdmin } from "../../utils/support";
+import { supportStatusFilterOptions } from "../../utils/supportLabels";
 
 function SupportRequests() {
   const { user: currentUser } = useAuth();
@@ -36,12 +39,21 @@ function SupportRequests() {
   );
   const { data, loading, error, reload } = useAsyncData(fetchRequests);
 
+  // New requests or replies arrived: refresh the list without a page reload
+  useOnEvent(SUPPORT_CHANGED, reload);
+
   const hasFilters = Boolean(searchText || status);
 
   function clearFilters() {
     setSearchText("");
     setStatus("");
     setPage(1);
+  }
+
+  function closeRequest() {
+    setSelected(null);
+    reload();
+    emit(BADGES_REFRESH);
   }
 
   const columns = [
@@ -60,6 +72,7 @@ function SupportRequests() {
       header: "Status",
       render: (item) => (
         <div className="flex flex-wrap items-center justify-end gap-1 md:justify-start">
+          <UnreadCount count={item.unreadCount} />
           <SupportBadge status={item.status} />
           {awaitingAdmin(item) && <Badge tone="red">Needs reply</Badge>}
         </div>
@@ -156,7 +169,7 @@ function SupportRequests() {
         <SupportRequestModal
           request={selected}
           actor={currentUser}
-          onClose={() => setSelected(null)}
+          onClose={closeRequest}
           onChanged={reload}
         />
       )}

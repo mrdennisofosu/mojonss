@@ -45,6 +45,8 @@ def serialize_user(actor, target):
         "status": profile.status if profile else "active",
         "emailVerified": bool(profile.email_verified) if profile else False,
         "createdAt": str(target.date_joined),
+        # Django updates this every time the person signs in (null = never signed in)
+        "lastLogin": target.last_login.isoformat() if target.last_login else None,
         "isSelf": actor.id == target.id,
         # Can the person asking change this account's role or status?
         "canManage": actor.id != target.id and can_manage(actor, target),
@@ -197,17 +199,21 @@ def create_user_view(request):
 
 @csrf_exempt
 def update_user_view(request, user_id):
-    """PATCH: change someone's name or email. Users cannot do this for themselves."""
+    """GET: one person's current details (the details dialog refreshes from this).
+    PATCH: change someone's name or email. Users cannot do this for themselves."""
     actor = request.user
     if not is_staff_member(actor):
         return forbidden("Forbidden")
-    if request.method != "PATCH":
+    if request.method not in ("GET", "PATCH"):
         return JsonResponse({"error": "Method not allowed"}, status=405)
 
     try:
         user = User.objects.select_related("profile").get(id=user_id)
     except User.DoesNotExist:
         return JsonResponse({"error": "User not found"}, status=404)
+
+    if request.method == "GET":
+        return JsonResponse(serialize_user(actor, user))
 
     if not can_manage(actor, user):
         return forbidden("Only the super admin can edit administrators.")

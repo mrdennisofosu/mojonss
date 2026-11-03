@@ -1,5 +1,8 @@
 from django.urls import path
-from . import views, auth_views, admin_views, verification_views, settings_views, notification_views
+from . import (
+    views, auth_views, admin_views, verification_views, settings_views,
+    notification_views, activity_views,
+)
 from . import content_views as cv
 
 urlpatterns = [
@@ -28,7 +31,7 @@ urlpatterns = [
     path('admin/overview/', views.list_overview_view, name='admin_overview'),
 
     # Activity Logs
-    path('activity-logs/', views.list_all_activities_view, name='all_activities'),
+    path('activity-logs/', activity_views.list_activities_view, name='all_activities'),
     path('activity/recent/<str:email>/', views.recent_activity_view, name='recent_activity'),
     path('activity/failed/<str:email>/', views.list_failed_sign_ins_view, name='failed_sign_ins'),
 
@@ -38,20 +41,22 @@ urlpatterns = [
     path('sessions/', views.list_sessions_view, name='list_sessions'),
     path('sessions/<str:user_id>/', views.list_sessions_view, name='list_sessions_by_user'),
 
-    # Announcements
+    # Sidebar numbers
+    path('notifications/badges/', notification_views.badges_view, name='notification_badges'),
+
+    # Announcements (opening one marks it as read for the signed-in reader)
     path('announcements/', cv.announcements_collection_view),
     path('announcements/published/', cv.announcements_published_view),
     path('announcements/teasers/', cv.announcements_teasers_view),
-    path('announcements/published/<int:announcement_id>/', cv.published_announcement_view),
+    path('announcements/published/<int:announcement_id>/', notification_views.published_announcement_with_read),
     path('announcements/<int:announcement_id>/', cv.announcement_detail_view),
     path('announcements/<int:announcement_id>/publish/', cv.announcement_publish_view),
 
-    # Support
-    path('support/unread/', notification_views.support_unread_view, name='support_unread'),
-    path('support/seen/', notification_views.support_seen_view, name='support_seen'),
-    path('support/', cv.support_collection_view),
-    path('support/my/', cv.my_support_requests_self_view),
+    # Support (lists carry an "unread" count; opening a request marks it as read)
+    path('support/', notification_views.support_collection_with_unread),
+    path('support/my/', notification_views.my_support_with_unread),
     path('support/user/<str:who>/', cv.my_support_requests_view),
+    path('support/<int:request_id>/read/', notification_views.support_read_view),
     path('support/<int:request_id>/', cv.support_detail_view),
     path('support/<int:request_id>/reply/', cv.support_reply_view),
     path('support/<int:request_id>/status/', cv.support_status_view),
